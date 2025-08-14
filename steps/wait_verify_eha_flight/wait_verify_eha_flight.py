@@ -13,8 +13,14 @@ init_console_logger(logging.INFO)
 
 from ing_lib.steps import *
 from ampcs_ing_lib.lad import get_ehas
-import time
 import copy
+import os
+
+
+AMPCS_PYTHON = os.environ.get('AMPCS_PYTHON')
+
+# Add the path to AMPCS
+sys.path.append(AMPCS_PYTHON)
 
 def build_telemetry_query(entries, telemetry: dict = None):
     """"
@@ -22,27 +28,28 @@ def build_telemetry_query(entries, telemetry: dict = None):
     """
     query = {}
     for entry in entries:
-        channel_id, channel_name = entry['flight_channel'].split(',')
+        entry_inputs = entry['entry_inputs']
+        channel_id, channel_name = entry_inputs['flight_channel'].split(',')
         query[channel_id] = {
             'channel_name': channel_name,
-            'dn_eu': entry['dn_eu'],
-            'verify_on': entry['verify_on'],
-            'wait_verify': entry['wait_verify']
+            'dn_eu': entry_inputs['dn_eu'],
+            'verify_on': entry_inputs['verify_on'],
+            'verify_wait': entry_inputs['verify_wait']
         }
 
-        if entry.get('bit_op') and entry.get('bit_mask'):
-            query[channel_id]['bit_op'] = entry['bit_op']
-            query[channel_id]['bit_mask'] = entry['bit_mask']
+        if entry_inputs.get('bit_op') and entry_inputs.get('bit_mask'):
+            query[channel_id]['bit_op'] = entry_inputs['bit_op']
+            query[channel_id]['bit_mask'] = entry_inputs['bit_mask']
 
-        verificatin_cond = entry.get('verificatin_cond').split(',')
+        verification_cond = entry_inputs.get('verificatin_cond').split(',')
 
-        verification_condition= verificatin_cond[0]
+        verification_condition= verification_cond[0]
         if verification_condition in ['RECORD','NOT_PRESENT']:
             verification_values = []
         if verification_condition in ['GREATER_THAN','LESS_THAN','EQUAL','NOT_EQUAL', 'GREATER_THAN_OR_EQUAL','LESS_THAN_OR_EQUAL','CONTAINS']:
-            verification_values = [verificatin_cond[1]]
+            verification_values = [verification_cond[1]]
         if verification_condition in ['INCLUSIVE_RANGE','EXCLUSIVE_RANGE']:
-            verification_values = [verificatin_cond[2], verificatin_cond[3]]
+            verification_values = [verification_cond[2], verification_cond[3]]
 
         query[channel_id]['verification_condition'] = verification_condition
         query[channel_id]['verification_values'] = verification_values
@@ -138,11 +145,11 @@ if __name__ == '__main__':
 
     # Build the telemetry query/predict
     query = build_telemetry_query(entries)
-    
-    telemetry_query_func = partial(get_ehas, session_id=inputs['data_path'])
+
+    telemetry_query_func = partial(get_ehas, session_ids=[int(inputs['data_path'])])
 
     # make the query
-    results = verify_wait_telemetry(query, telemetry_query_func, start_time=start_time, timeout=timeout, lookback=lookback)
+    results = verify_wait_telemetry(query, telemetry_query_func, start_time=start_time, timeout=inputs.get('timeout'), lookback=inputs.get('lookback'))
 
 
     # Populate output values

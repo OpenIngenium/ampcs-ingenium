@@ -26,7 +26,7 @@
                     <enum symbolic="VALUE"></enum>
                 </enumeration>
             </input_field>
-            <input_field name="wait_verify" description="Verify will evaluate the first measurement found agains the predicts and return. Wait will continue to evaluate telemetry until the predict is met (or timeout)" phase="AUTHORING" required="YES" type="ENUM" default_value="VERIFY"> 
+            <input_field name="verify_wait" description="Verify will evaluate the first measurement found agains the predicts and return. Wait will continue to evaluate telemetry until the predict is met (or timeout)" phase="AUTHORING" required="YES" type="ENUM" default_value="VERIFY">
                 <enumeration>
                     <enum symbolic="WAIT"></enum>
                     <enum symbolic="VERIFY"></enum>
