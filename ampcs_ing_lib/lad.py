@@ -9,7 +9,11 @@ Authors:
 #################################################### Imports ####################################################
 
 import os
+import sys
 # AMPCS lad library
+AMPCS_PYTHON = os.environ.get('AMPCS_PYTHON')
+# Add the path to AMPCS
+sys.path.append(AMPCS_PYTHON)
 from lad import client, gdsclient
 from enum import Enum
 from datetime import datetime, timedelta
