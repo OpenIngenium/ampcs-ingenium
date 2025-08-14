@@ -19,7 +19,7 @@ setup(
     packages=find_packages(),
     install_requires=[    ],
     description="JPL specific libraries and functions for Ingenium",
-    version=get_version(os.path.join('ing-lib-jpl', '__init__.py')),
+    version=get_version(os.path.join('ampcs_ing_lib', '__init__.py')),
     python_requires='>=3.9',
     entry_points={
         'console_scripts': []
