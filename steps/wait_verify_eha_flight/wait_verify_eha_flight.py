@@ -12,9 +12,53 @@ from ing_lib.logs import init_console_logger
 init_console_logger(logging.INFO)
 
 from ing_lib.steps import *
-from ing_lib_jpl.ampcs_lad import get_ehas
+from ampcs_ing_lib.lad import get_ehas
 import time
 import copy
+
+def build_telemetry_query(entries, telemetry: dict = None):
+    """"
+    This function will build a telemetry query from the entries.
+    """
+    query = {}
+    for entry in entries:
+        channel_id, channel_name = entry['flight_channel'].split(',')
+        query[channel_id] = {
+            'channel_name': channel_name,
+            'dn_eu': entry['dn_eu'],
+            'verify_on': entry['verify_on'],
+            'wait_verify': entry['wait_verify']
+        }
+
+        if entry.get('bit_op') and entry.get('bit_mask'):
+            query[channel_id]['bit_op'] = entry['bit_op']
+            query[channel_id]['bit_mask'] = entry['bit_mask']
+
+        verificatin_cond = entry.get('verificatin_cond').split(',')
+
+        verification_condition= verificatin_cond[0]
+        if verification_condition in ['RECORD','NOT_PRESENT']:
+            verification_values = []
+        if verification_condition in ['GREATER_THAN','LESS_THAN','EQUAL','NOT_EQUAL', 'GREATER_THAN_OR_EQUAL','LESS_THAN_OR_EQUAL','CONTAINS']:
+            verification_values = [verificatin_cond[1]]
+        if verification_condition in ['INCLUSIVE_RANGE','EXCLUSIVE_RANGE']:
+            verification_values = [verificatin_cond[2], verificatin_cond[3]]
+
+        query[channel_id]['verification_condition'] = verification_condition
+        query[channel_id]['verification_values'] = verification_values
+
+        if entry.get('verify_on')  == 'CHANGE':
+            if telemetry.get(channel_id):
+                query[channel_id]['prior_value'] = telemetry[channel_id]
+            else:
+                msg = f'Prior value for {channel_id} not located in telemetry history. Unable to verify on change.'
+                logger.error(msg)
+                raise InputError(msg)
+        else:
+            query[channel_id]['prior_value'] = None
+       
+    return query
+
 
 if __name__ == '__main__':
 
@@ -76,36 +120,38 @@ if __name__ == '__main__':
     write_output_file(output_dict, output_file_abs_path)
     logger.info('Output file was initialized')
 
+    # Convert the start_time to a datetime object
+    start_time = datetime.strptime(inputs['start_time'], '%Y-%jT%H:%M:%S.%f')
+    
+    # Compute the query range
+    query_start = start_time - timedelta(seconds=inputs['lookback'])
+    query_end = start_time + timedelta(seconds=inputs['timeout'])
+    
+    # Update the query range in the outputs
+    outputs['start_time_date_time'] = start_time.strftime('%Y-%jT%H:%M:%S.%f')
+    outputs['query_start'] = query_start.strftime('%Y-%jT%H:%M:%S.%f')
+    outputs['query_end'] = query_end.strftime('%Y-%jT%H:%M:%S.%f')
+
+    # Update the output
+    write_output_file(output_dict, output_file_abs_path)
+
+
     # Build the telemetry query/predict
+    query = build_telemetry_query(entries)
+    
+    telemetry_query_func = partial(get_ehas, session_id=inputs['data_path'])
+
     # make the query
+    results = verify_wait_telemetry(query, telemetry_query_func, start_time=start_time, timeout=timeout, lookback=lookback)
+
 
     # Populate output values
     for i, entry in enumerate(entries):
-        entry['verification_status'] = 'PASS'
-        entry['entry_outputs']['entry_output_1'] = '' + str(i)
-        entry['entry_outputs']['entry_output_2'] = '' + str(10*i)
-
-        entry_output_array = entry['entry_output_array']
-        for j in range(5):
-            elem = {
-                'entry_output_array_field_1': '' + str(j),
-                'entry_output_array_field_2': '' + str(10*j),
-            }
-            entry_output_array.append(elem)
-        
-        write_output_file(output_dict, output_file_abs_path)
-        logger.info(f'Entry was added: {i}')
-            
-        time.sleep(1)
-
-    # set outputs        
-    outputs['output_1'] = '101'
-    outputs['output_2'] = '102'
-
+        pass
 
 
     '''
-    If your script has entries - evaluate them to determine overall status.
+    Evaluate the entries to determine overall status.
     '''
     # Review entries to generate overall status
     custom_script_status = 'PASS'
@@ -124,7 +170,7 @@ if __name__ == '__main__':
 
     output_dict['custom_script_status'] = 'PASS'
 
-    msg = 'template.py has run to completion with overall status: %s' % custom_script_status
+    msg = f'wait_verify_eha_flight.py has run to completion with overall status: {custom_script_status}'
     logger.info(msg)
     output_dict['custom_script_status'] = custom_script_status
 

@@ -1,0 +1,36 @@
+{
+    "username": "Ingenium will fill this in with the test conductors user name",
+    "variables": {
+        "telemetry": {"CMD-1234": "324.2",
+                      "DDM-0001": "ENABLED"},
+        "parameters": {"TO_BE_IMP": "SOON"}
+    },
+    "inputs": {
+        "start_time": "UPDATE_ME",
+        "lookback": 0,
+        "timeout": 60,
+        "data_path": "UPDATE_ME"
+    },
+    "entries": [
+        {
+            "entry_inputs": {
+                "flight_channel": "CMD-1234, CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "wait_verify": "VERIFY",
+                "verificatin_cond": "RECORD,,,"
+            }
+        },
+        {
+            "entry_inputs": {
+                "flight_channel": "DDM-0001, CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "wait_verify": "VERIFY",
+                "verificatin_cond": "EQUAL,17,,",
+                "bit_op": "AND",
+                "bit_mask": "0xFF"
+            }
+        }
+    ]
+}
