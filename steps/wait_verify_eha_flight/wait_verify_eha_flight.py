@@ -3,19 +3,36 @@
 This is an implementation of the builtin Verify/Wait EHA step using the Step Framework.
 
 Authors:
-    * Chris Swa
+    * Chris Swan
 
 '''
-
-import logging
-from ing_lib.logs import init_console_logger
-init_console_logger(logging.INFO)
-
-from ing_lib.steps import *
-from ampcs_ing_lib.lad import get_ehas
+import sys
+import os
+from ing_lib.logs import init_console_logger, get_logger
+from datetime import datetime, timedelta
 import copy
 import os
+import matplotlib.pyplot as plt
+import random
+from typing import List
 
+
+init_console_logger()
+logger = get_logger(__name__)
+from ampcs_ing_lib.lad import get_ehas, ReturnOn
+from ing_lib.steps import *
+
+# List of defined colors (currently the TABLEU20 list)
+COLORS = [
+    "#4E79A7", "#A0CBE8", "#F28E2B", "#FFBE7D",
+    "#59A14F", "#8CD17D", "#B6992D", "#F1CE63",
+    "#499894", "#86BCB6", "#9C755F", "#D7B5A6",
+    "#BAB0AB", "#D4D4D4", "#79706E", "#BAB0AB",
+    "#CEDB9C", "#FF9DA7", "#B6992D", "#FF9DA7"
+]
+
+# Global cache for colors that are still available
+_remaining_colors: List[str] = []
 
 AMPCS_PYTHON = os.environ.get('AMPCS_PYTHON')
 
@@ -41,7 +58,7 @@ def build_telemetry_query(entries, telemetry: dict = None):
             query[channel_id]['bit_op'] = entry_inputs['bit_op']
             query[channel_id]['bit_mask'] = entry_inputs['bit_mask']
 
-        verification_cond = entry_inputs.get('verificatin_cond').split(',')
+        verification_cond = entry_inputs.get('verification_cond').split(',')
 
         verification_condition= verification_cond[0]
         if verification_condition in ['RECORD','NOT_PRESENT']:
@@ -66,10 +83,142 @@ def build_telemetry_query(entries, telemetry: dict = None):
        
     return query
 
+# ----------------------------------------------------------------------
+# Wrapper to call get_ehas with session_ids as a keyword argument
+def telemetry_query_func(query, timeout, lookback, start_time, return_on):
+    """
+    Calls `get_ehas` injecting the required `session_ids` keyword.
+    This signature matches what `verify_wait_telemetry` expects.
+    """
+    return get_ehas(
+        [int(inputs['data_path'])],
+        query,
+        timeout,
+        lookback,
+        start_time,
+        ReturnOn.ALL
+    )
+# ----------------------------------------------------------------------
+
+def _available_colors() -> None:
+    """Keeps the list of available coolors for series generation"""
+    global _remaining_colors
+    if not _remaining_colors:
+        _remaining_colors = list(COLORS)
+
+def pick_color():
+    """
+    Returns a color from the defined color palette
+
+    Returns
+    -------
+    hex_color: str
+        The selected color hex string
+
+    """
+
+    # Check that color list is initialized
+    _available_colors()
+
+    # Pick an unused color
+    if _remaining_colors:
+        color = random.choice(_remaining_colors)
+        _remaining_colors.remove(color)
+        return color
+
+    # If all colors are used - just pick a random color from the palette
+    return random.choice(COLORS)
+
+
+# ----------------------------------------------------------------------
+# Helper to parse ERT strings (unchanged)
+def _parse_ert(ert_str: str) -> datetime:
+    ert_str = ert_str.strip().rstrip('Z')
+    return datetime.strptime(ert_str, "%Y-%jT%H:%M:%S.%f")
+# ----------------------------------------------------------------------
+
+
+def plot_all_channels(series: list, output_dir: str,
+                     png_name: str = "wait_verify_eha_all_channels.png"):
+    """
+    Plot **all** channel time‑series on a single figure and save as PNG.
+
+    Parameters
+    ----------
+    series : list[dict]
+        List of channel dictionaries built earlier (each contains
+        ``name``, ``color`` and ``data`` = [(dn, ert), …]).
+    output_dir : str
+        Directory where the PNG will be written.
+    png_name : str, optional
+        Filename (without path) for the combined plot.
+    """
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    plt.figure(figsize=(12, 6))
+
+    plotted_any = False   # <-- will stay False if no channel has valid points
+
+    # Iterate over every channel, plotting its points
+    for ch in series:
+        chan_id = ch.get("name", "unknown")
+        colour  = ch.get("color", "#000000")
+        raw_data = ch.get("data", [])
+
+        dn_vals = []
+        ert_vals = []
+
+        for point in raw_data:
+            if not isinstance(point, (list, tuple)) or len(point) != 2:
+                continue
+            dn, ert = point
+            try:
+                ert_dt = _parse_ert(str(ert))
+            except Exception as exc:
+                logger.debug(f"Could not parse ERT '{ert}' for channel {chan_id}: {exc}")
+                continue
+
+            dn_vals.append(float(dn))
+            ert_vals.append(ert_dt)
+
+        if not dn_vals:
+            logger.warning(f"No valid telemetry points for channel {chan_id}; skipping plot.")
+            continue
+
+        # Plot this channel’s line (with markers for visibility)
+        plt.plot(ert_vals, dn_vals,
+                 color=colour,
+                 linewidth=2,
+                 marker='o',
+                 markersize=4,
+                 label=f"Channel {chan_id}")
+        plotted_any = True  # at least one line was drawn
+
+    # ------------------------------------------------------------------
+    # Only add a legend if something was actually plotted.
+    # ------------------------------------------------------------------
+    if plotted_any:
+        plt.title("Telemetry – DN vs. Earth Return Time (All Channels)")
+        plt.xlabel("Earth Return Time (ERT)")
+        plt.ylabel("DN Value")
+        plt.grid(True, which="both", ls="--", lw=0.5, alpha=0.7)
+        plt.legend(title="Channels", loc="best", fontsize="small")
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+    else:
+        # Still produce a minimal figure so the PNG exists, but warn the user.
+        plt.title("No valid telemetry data to display")
+        plt.axis('off')  # hide axes
+
+    # Save the combined image
+    png_path = os.path.join(output_dir, png_name)
+    plt.savefig(png_path, dpi=300)
+    plt.close()
+
+    logger.info(f"Saved combined telemetry plot → {png_path}")
 
 if __name__ == '__main__':
-
-    logger = logging.getLogger(__name__)
 
     # Locate the custom script input file
     error_msg = 'USAGE: python wait_verify_eha_flight.py input_file_path output_file_path'
@@ -89,7 +238,7 @@ if __name__ == '__main__':
     entries = copy.deepcopy(input_dict.get('entries', {}))
 
     # Initialize Series Data
-    series = {}
+    series = []
 
     outputs = {
         'start_time_date_time': '',
@@ -126,7 +275,8 @@ if __name__ == '__main__':
     # Write initial output
     write_output_file(output_dict, output_file_abs_path)
     logger.info('Output file was initialized')
-
+    # TODO REMOVE AFTER TESTING
+    inputs['start_time'] = datetime.utcnow().strftime('%Y-%jT%H:%M:%S.%f')
     # Convert the start_time to a datetime object
     start_time = datetime.strptime(inputs['start_time'], '%Y-%jT%H:%M:%S.%f')
     
@@ -142,19 +292,40 @@ if __name__ == '__main__':
     # Update the output
     write_output_file(output_dict, output_file_abs_path)
 
-
     # Build the telemetry query/predict
     query = build_telemetry_query(entries)
-
-    telemetry_query_func = partial(get_ehas, session_ids=[int(inputs['data_path'])])
 
     # make the query
     results = verify_wait_telemetry(query, telemetry_query_func, start_time=start_time, timeout=inputs.get('timeout'), lookback=inputs.get('lookback'))
 
-
     # Populate output values
     for i, entry in enumerate(entries):
-        pass
+        entry_channel_id = entry['entry_inputs'].get('flight_channel').split(',')[0]
+        entry_results = results['channels'].get(entry_channel_id)
+        entry['entry_outputs']['channel_type'] = entry_results['channel_details'].get('channelType')
+        entry['entry_outputs']['dn_value'] = entry_results['channel_details'].get('dn')
+        entry['entry_outputs']['eu_value'] = entry_results['channel_details'].get('eu')
+        entry['entry_outputs']['status_value'] = entry_results['channel_details'].get('status')
+        entry['entry_outputs']['host'] = entry_results['channel_details'].get('host')
+        entry['entry_outputs']['ert'] = entry_results['channel_details'].get('ert')
+        entry['entry_outputs']['scet'] = entry_results['channel_details'].get('scet')
+        entry['entry_outputs']['sclk'] = entry_results['channel_details'].get('sclk')
+        entry['entry_outputs']['session_id'] = entry_results['channel_details'].get('sessionNumber')
+        entry['entry_outputs']['actual_value'] = entry_results.get('actual_value')
+        entry['entry_outputs']['prior_value'] = entry_results['predicts'].get('prior_value')
+
+        channel_series_data = []
+        for chanval in entry_results['history']:
+            #TODO need to incorporate "actual value" for now we can just use DN
+            channel_series_data.append((chanval.get('dn'),chanval.get('ert')))
+
+        channel_series = {'name': entry_channel_id,
+                          'series_type': 'HORIZONTAL',
+                          'color': pick_color(),
+                          'data': channel_series_data,
+                          'timetype': 'Earth Return Time'}
+
+        series.append(channel_series)
 
 
     '''
@@ -181,7 +352,13 @@ if __name__ == '__main__':
     logger.info(msg)
     output_dict['custom_script_status'] = custom_script_status
 
-    # Report Final custom_script_status
-    # TODO WRITE SERIES TO FILE
+    # Write any series or image data
+    output_dir = os.path.dirname(output_file_abs_path)
+    write_series_file(series,output_dir)
+
+    # Write image of channels graphed
+    plot_all_channels(series, output_dir)
+
+    # Report Final custom_script_status (will complete the script)
     write_output_file(output_dict, output_file_abs_path)
 
