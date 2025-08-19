@@ -20,10 +20,9 @@ from datetime import datetime, timedelta
 from operator import itemgetter
 import traceback
 import time
-import logging
 
-
-logger = logging.getLogger(__name__)
+from ing_lib.logs import get_logger
+logger = get_logger(__name__)
 
 #################################################### Constants ####################################################
 
