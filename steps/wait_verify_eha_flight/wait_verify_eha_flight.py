@@ -31,6 +31,8 @@ COLORS = [
     "#CEDB9C", "#FF9DA7", "#B6992D", "#FF9DA7"
 ]
 
+GRAPH_FILE_NAME = 'wait_verify_eha_graph.png'
+
 # Global cache for colors that are still available
 _remaining_colors: List[str] = []
 
@@ -83,7 +85,6 @@ def build_telemetry_query(entries, telemetry: dict = None):
        
     return query
 
-# ----------------------------------------------------------------------
 # Wrapper to call get_ehas with session_ids as a keyword argument
 def telemetry_query_func(query, timeout, lookback, start_time, return_on):
     """
@@ -98,7 +99,6 @@ def telemetry_query_func(query, timeout, lookback, start_time, return_on):
         start_time,
         ReturnOn.ALL
     )
-# ----------------------------------------------------------------------
 
 def _available_colors() -> None:
     """Keeps the list of available coolors for series generation"""
@@ -129,17 +129,13 @@ def pick_color():
     # If all colors are used - just pick a random color from the palette
     return random.choice(COLORS)
 
-
-# ----------------------------------------------------------------------
 # Helper to parse ERT strings (unchanged)
 def _parse_ert(ert_str: str) -> datetime:
     ert_str = ert_str.strip().rstrip('Z')
     return datetime.strptime(ert_str, "%Y-%jT%H:%M:%S.%f")
-# ----------------------------------------------------------------------
-
 
 def plot_all_channels(series: list, output_dir: str,
-                     png_name: str = "wait_verify_eha_all_channels.png"):
+                     png_name: str = GRAPH_FILE_NAME):
     """
     Plot **all** channel time‑series on a single figure and save as PNG.
 
@@ -253,6 +249,8 @@ if __name__ == '__main__':
         'outputs': outputs
     }
 
+    channels_to_graph=[]
+
     # Step through each entry and initialize the outputs
     for i, entry in enumerate(entries):
         entry['verification_status'] = 'PENDING'
@@ -269,8 +267,10 @@ if __name__ == '__main__':
             'session_id': '0',
             'actual_value': '0',
             'prior_value': '0'
-
         }
+        graphit = entry['entry_inputs'].get('graphable')
+        if graphit == 'true':
+            channels_to_graph.append(entry['entry_inputs'].get('flight_channel').split(',')[0])
 
     # Write initial output
     write_output_file(output_dict, output_file_abs_path)
@@ -314,18 +314,19 @@ if __name__ == '__main__':
         entry['entry_outputs']['actual_value'] = entry_results.get('actual_value')
         entry['entry_outputs']['prior_value'] = entry_results['predicts'].get('prior_value')
 
-        channel_series_data = []
-        for chanval in entry_results['history']:
-            #TODO need to incorporate "actual value" for now we can just use DN
-            channel_series_data.append((chanval.get('dn'),chanval.get('ert')))
+        if entry_channel_id in channels_to_graph:
+            channel_series_data = []
+            for chanval in entry_results['history']:
+                #TODO need to incorporate "actual value" for now we can just use DN
+                channel_series_data.append((chanval.get('dn'),chanval.get('ert')))
 
-        channel_series = {'name': entry_channel_id,
-                          'series_type': 'HORIZONTAL',
-                          'color': pick_color(),
-                          'data': channel_series_data,
-                          'timetype': 'Earth Return Time'}
+            channel_series = {'name': entry_channel_id,
+                              'series_type': 'HORIZONTAL',
+                              'color': pick_color(),
+                              'data': channel_series_data,
+                              'timetype': 'Earth Return Time'}
 
-        series.append(channel_series)
+            series.append(channel_series)
 
 
     '''
