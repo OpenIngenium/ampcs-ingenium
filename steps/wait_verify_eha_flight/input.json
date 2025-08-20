@@ -1,0 +1,46 @@
+{
+    "username": "Ingenium will fill this in with the test conductors user name",
+    "variables": {
+        "telemetry": {"CMD-1234": "324.2",
+                      "DDM-0001": "ENABLED"},
+        "parameters": {"TO_BE_IMP": "SOON"}
+    },
+    "inputs": {
+        "start_time": "2025-227T15:49:48.745",
+        "lookback": 500,
+        "timeout": 60,
+        "data_path": "84"
+    },
+    "entries": [
+        {
+            "entry_inputs": {
+                "flight_channel": "SAMPLEID-1, CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "verify_wait": "VERIFY",
+                "verification_cond": "RECORD,,,",
+                "graphable": "false"
+            }
+        },
+        {
+            "entry_inputs": {
+                "flight_channel": "SAMPLEID-2, CHANNEL_NAME",
+                "dn_eu": "EU",
+                "verify_on": "VALUE",
+                "verify_wait": "VERIFY",
+                "verification_cond": "EQUAL,17,,",
+                "graphable": "false"
+            }
+        },
+        {
+            "entry_inputs": {
+                "flight_channel": "SAMPLEID-3 CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "verification_cond": "RECORD,,,",
+                "verify_wait": "VERIFY",
+                "graphable": "false"
+            }
+        }
+    ]
+}

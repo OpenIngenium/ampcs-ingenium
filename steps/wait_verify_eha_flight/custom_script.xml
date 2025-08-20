@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--' If you are using an XML editor - like oXygen - update the next line to point to your local schema copy '-->
+<?xml-model href="file:" type="application/relax-ng-compact-syntax"?>
+<custom-scripts>
+    <!-- mission name is a string defined for each project -->
+    <header mission_name="UPDATE_ME"></header>
+    <custom_script script_name="wait-verify-eha-flight" script_path="wait_verify_eha_flight.py" description="Wait/Verify EHA measurements against predicts." hash="SHA256 Hash of your script - populated by create_catalog.py" script_id="unique id of your script - populated by create_catalog.py">
+        <!--' All telemetry will be queried in a time range defined by a start time, lookback (or negative offset) and a timeout. '-->
+        <input_field name="start_time" description="Start time to query telemetry from" phase="AUTHORING" required="YES" type="TIME"></input_field>
+        <input_field name="lookback" description="Negative offset (in seconds) from the start_time to query." phase="AUTHORING" required="YES" type="INT" default_value="0"></input_field>
+        <input_field name="timeout" description="How long to wait (in seconds) for telemetry to be populated/match predicts." phase="AUTHORING" required="YES" type="INT" default_value="60"></input_field>
+        <input_field description="Data Path to query from" name="data_path" phase="AUTHORING" required="YES" type="DATA_PATH"></input_field>
+
+        <!--' This step takes a repeating series of input for each channel to query. '-->
+        <script_entry display_value="actual_value">
+            <input_field description="Flight Channel Indentification" name="flight_channel" phase="AUTHORING" required="YES" type="FLIGHT_TELEM"></input_field>
+            <input_field name="dn_eu" description="Whether to look at the DN or EU values of the channel." phase="AUTHORING" required="YES" type="ENUM" default_value="DN"> 
+                <enumeration>
+                    <enum symbolic="DN"></enum>
+                    <enum symbolic="EU"></enum>
+                </enumeration>
+            </input_field>
+            <input_field name="verify_on" description="Whether to evaluate the verification conditions on the measured value or the change from the last measurement." phase="AUTHORING" required="YES" type="ENUM" default_value="VALUE"> 
+                <enumeration>
+                    <enum symbolic="CHANGE"></enum>
+                    <enum symbolic="VALUE"></enum>
+                </enumeration>
+            </input_field>
+            <input_field name="verify_wait" description="Verify will evaluate the first measurement found agains the predicts and return. Wait will continue to evaluate telemetry until the predict is met (or timeout)" phase="AUTHORING" required="YES" type="ENUM" default_value="VERIFY">
+                <enumeration>
+                    <enum symbolic="WAIT"></enum>
+                    <enum symbolic="VERIFY"></enum>
+                </enumeration>
+            </input_field>                    
+            <input_field description="Verification Condition" name="verificatin_cond" phase="AUTHORING" required="YES" type="VERIFICATION_COND"></input_field>
+            <input_field name="bit_op" description="Bit mask operation to perform on telemetry value before evaluating predict" phase="AUTHORING" required="NO" type="ENUM"> 
+                <enumeration>
+                    <enum symbolic="AND"></enum>
+                    <enum symbolic="OR"></enum>
+                </enumeration>
+            </input_field>
+            <input_field name="graphable" description="Whether to include this channel in the graph" phase="AUTHORING" required="YES" type="bool"></input_field>
+            <input_field description="Bit Mask. Can use binary (0b1100101), hex (0x23A3) or decimal (43) formats." name="bit_mask" phase="AUTHORING" required="NO" type="STRING"></input_field>
+            <output_field name="channel_type" description="Channel Type" type="STRING"/>
+            <output_field name="dn_value" description="DN (RAW) Value" type="STRING"/>
+            <output_field name="eu_value" description="Eng Unit Value" type="STRING"/>
+            <output_field name="status_value" description="Status/Enum Value" type="STRING"/>
+            <output_field name="host" description="AMPCS Host" type="STRING"/>
+            <output_field name="ert" description="Earth Return Time" type="STRING"/>
+            <output_field name="scet" description="Spacecraft Event Time" type="STRING"/>
+            <output_field name="sclk" description="Spacecraft Clock" type="STRING"/>
+            <output_field name="session_id" description="AMPCS Session ID" type="STRING"/>
+            <output_field name="actual_value" description="Values used for evaluation against predict" type="STRING"/>
+            <output_field name="prior_value" description="Prior value of telemetry (if available)" type="STRING"/>
+        </script_entry>
+        <output_field description="The time of the start_time." name="start_time_date_time" type="STRING"/>
+        <output_field description="The computed start of the telemetry query (start_time - lookback)" name="query_start" type="STRING"/>
+        <output_field description="The computed end of the telemetry query (end_time + timeout)" name="query_end" type="STRING"/>
+        <output_field name="series" description="Series" type="SERIES"/>
+        <output_field name="series_img" description="Series Image" type="IMAGE"/>
+    <advanced_layout>
+        <section>
+            <section_header>
+                <layout_display>
+                    <template template="Query from {start_time}"></template>
+                    <mouseover_display>
+                        <mouseover_element field_name="start_time_date_time" display_name="Start Time"></mouseover_element>
+                    </mouseover_display>
+                    <layout row="1" column="1" width="3" height="1" align="LEFT"></layout>
+                </layout_display>
+                <layout_display>
+                    <template template="(Lookback: {lookback} seconds, Timeout: {timeout} seconds. On Data Path: {data_path}"></template>
+                    <mouseover_display>
+                        <mouseover_element field_name="query_start" display_name="Query Start"></mouseover_element>
+                        <mouseover_element field_name="query_end" display_name="Query End"></mouseover_element>
+                    </mouseover_display>
+                    <layout row="1" column="4" width="6" height="1" align="LEFT"></layout>
+                </layout_display>
+                
+                <icon icon_type="STATUS">
+                    <layout row="1" column="12" width="1" height="1" align="RIGHT"></layout>
+                </icon>
+            </section_header>
+            <section_content>
+                <layout_field field_name="start_time">
+                    <label label_content="Start Time" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="1" width="3" height="1" align="LEFT"></layout>
+                </layout_field>
+                <layout_field field_name="lookback">
+                    <label label_content="Lookback" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="4" width="3" height="1" align="LEFT"></layout>
+                </layout_field>
+                <layout_field field_name="timeout">
+                    <label label_content="Timeout" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="7" width="3" height="1" align="LEFT"></layout>
+                </layout_field>
+                <layout_field field_name="data_path">
+                    <label label_content="Data Path" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="10" width="3" height="1" align="LEFT"></layout>
+                </layout_field>                
+            </section_content>
+        </section>
+        <entry_section>
+            <section_header>
+                <layout_display>
+                    <template template="{wait_verify} {flight_channel[0]} {flight_channel[1]}"></template>
+                    <layout row="1" column="1" width="4" height="1" align="LEFT"></layout>
+                </layout_display>
+                <layout_display>
+                    <template template="Evaluate {verify_on} ({dn_eu}) {verificatin_cond} (Bitmask: {} {})"></template>
+                    <layout row="1" column="5" width="4" height="1" align="LEFT"></layout>
+                </layout_display>
+                <layout_display>
+                    <template template="Value: {actual_value}"></template>
+                    <layout row="1" column="9" width="3" height="1" align="LEFT"></layout>
+                </layout_display>
+                <icon icon_type="STATUS">
+                    <mouseover_display>
+                        <mouseover_element field_name="wait_verify" display_name="Wait/Verify"></mouseover_element>
+                        <mouseover_element field_name="flight_channel[0]" display_name="Channel ID"></mouseover_element>
+                        <mouseover_element field_name="flight_channel[1]" display_name="Channel Name"></mouseover_element>
+                        <mouseover_element field_name="channel_type" display_name="Channel Type"></mouseover_element>
+                        <mouseover_element field_name="dn_value" display_name="DN Value"></mouseover_element>
+                        <mouseover_element field_name="eu_value" display_name="EU Value"></mouseover_element>
+                        <mouseover_element field_name="status_value" display_name="Status Value"></mouseover_element>
+                        <mouseover_element field_name="actual_value" display_name="Evaluated Value"></mouseover_element>
+                        <mouseover_element field_name="prior_value" display_name="Evaluated Value"></mouseover_element>                        
+                        <mouseover_element field_name="session_id" display_name="Session ID"></mouseover_element>
+                        <mouseover_element field_name="host" display_name="AMPCS Host"></mouseover_element>                        
+                        <mouseover_element field_name="ert" display_name="ERT"></mouseover_element>
+                        <mouseover_element field_name="sclk" display_name="SCLK"></mouseover_element>
+                        <mouseover_element field_name="scet" display_name="SCET"></mouseover_element>                        
+                    </mouseover_display>
+                    <layout row="1" column="12" width="1" height="1" align="RIGHT"></layout>
+                </icon>                              
+            </section_header>
+            <section_content>
+                <layout_field field_name="flight_channel">
+                    <label label_content="Flight Channel" label_loc="TOP" label_align="CENTER"></label>
+                    <layout row="1" column="1" width="6" height="1" align="CENTER"></layout>
+                </layout_field>
+                <layout_field field_name="wait_verify">
+                    <label label_content="Wait/Verify" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="7" width="3" height="1" align="CENTER"></layout>
+                </layout_field>
+                <layout_field field_name="verify_on">
+                    <label label_content="Verify Change/Value" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="1" column="10" width="3" height="1" align="CENTER"></layout>
+                </layout_field>        
+                <layout_field field_name="verificatin_cond">
+                    <label label_content="Verification Condition" label_loc="TOP" label_align="CENTER"></label>
+                    <layout row="2" column="1" width="12" height="1" align="LEFT"></layout>
+                </layout_field>        
+                <layout_field field_name="dn_eu">
+                    <label label_content="DN/EU" label_loc="TOP" label_align="LEFT"></label>
+                    <layout row="3" column="1" width="2" height="1" align="LEFT"></layout>
+                </layout_field>        
+                <layout_field field_name="bit_op" tool_tip="AND or OR">
+                    <label label_content="Bitmask Operation" label_loc="TOP" label_align="CENTER"></label>
+                    <layout row="3" column="3" width="2" height="1" align="LEFT"></layout>
+                </layout_field>        
+                <layout_field field_name="bit_mask" tool_tip="Can use binary (0b1100101), hex (0x23A3) or decimal (43) formats.">
+                    <label label_content="Bitmask Value" label_loc="TOP" label_align="CENTER"></label>
+                    <layout row="3" column="5" width="4" height="1" align="LEFT"></layout>
+                </layout_field>
+                <layout_field field_name="graphable" tool_tip="Whether to include this channel in the graph.">
+                    <label label_content="Graph" label_loc="LEFT" label_align="CENTER"></label>
+                    <layout row="3" column="10" width="1" height="1" align="RIGHT"
+                </layout_field>
+            </section_content>         
+        </entry_section>
+        <section>
+            <section_results>
+                <series field_name="series">
+                    <label label_content="Interactive Graph" label_loc="BOTTOM" label_align="CENTER"></label>
+                    <layout row="1" column="1" width="6" height="6" align="CENTER"></layout>
+                </series>
+                <image_display field_name="series_img">
+                    <label label_content="Static Graph" label_loc="BOTTOM" label_align="CENTER"></label>
+                    <layout row="1" column="7" width="6" height="6" align="CENTER"></layout>
+                </image_display>
+            </section_results>
+        </section>
+    </advanced_layout>
+    </custom_script>
+</custom-scripts>

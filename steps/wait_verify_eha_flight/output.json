@@ -1,0 +1,64 @@
+{
+    "custom_script_status": "PENDING",
+    "inputs": {
+        "start_time": "2025-226T21:54:00.00",
+        "lookback": 0,
+        "timeout": 60,
+        "data_path": "80"
+    },
+    "entries": [
+        {
+            "entry_inputs": {
+                "flight_channel": "CMD-1234, CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "verify_wait": "VERIFY",
+                "verificatin_cond": "RECORD,,,"
+            },
+            "verification_status": "PENDING",
+            "entry_outputs": {
+                "channel_type": "0",
+                "dn_value": "0",
+                "eu_value": "0",
+                "status_value": "0",
+                "host": "0",
+                "ert": "0",
+                "scet": "0",
+                "sclk": "0",
+                "session_id": "0",
+                "actual_value": "0",
+                "prior_value": "0"
+            }
+        },
+        {
+            "entry_inputs": {
+                "flight_channel": "DDM-0001, CHANNEL_NAME",
+                "dn_eu": "DN",
+                "verify_on": "VALUE",
+                "verify_wait": "VERIFY",
+                "verificatin_cond": "EQUAL,17,,",
+                "bit_op": "AND",
+                "bit_mask": "0xFF"
+            },
+            "verification_status": "PENDING",
+            "entry_outputs": {
+                "channel_type": "0",
+                "dn_value": "0",
+                "eu_value": "0",
+                "status_value": "0",
+                "host": "0",
+                "ert": "0",
+                "scet": "0",
+                "sclk": "0",
+                "session_id": "0",
+                "actual_value": "0",
+                "prior_value": "0"
+            }
+        }
+    ],
+    "outputs": {
+        "start_time_date_time": "2025-226T21:54:00.000000",
+        "query_start": "2025-226T21:54:00.000000",
+        "query_end": "2025-226T21:55:00.000000"
+    }
+}
