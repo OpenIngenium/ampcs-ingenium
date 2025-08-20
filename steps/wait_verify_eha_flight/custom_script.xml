@@ -39,6 +39,7 @@
                     <enum symbolic="OR"></enum>
                 </enumeration>
             </input_field>
+            <input_field name="graphable" description="Whether to include this channel in the graph" phase="AUTHORING" required="YES" type="bool"></input_field>
             <input_field description="Bit Mask. Can use binary (0b1100101), hex (0x23A3) or decimal (43) formats." name="bit_mask" phase="AUTHORING" required="NO" type="STRING"></input_field>
             <output_field name="channel_type" description="Channel Type" type="STRING"/>
             <output_field name="dn_value" description="DN (RAW) Value" type="STRING"/>
@@ -56,6 +57,7 @@
         <output_field description="The computed start of the telemetry query (start_time - lookback)" name="query_start" type="STRING"/>
         <output_field description="The computed end of the telemetry query (end_time + timeout)" name="query_end" type="STRING"/>
         <output_field name="series" description="Series" type="SERIES"/>
+        <output_field name="series_img" description="Series Image" type="IMAGE"/>
     <advanced_layout>
         <section>
             <section_header>
@@ -161,8 +163,24 @@
                     <label label_content="Bitmask Value" label_loc="TOP" label_align="CENTER"></label>
                     <layout row="3" column="5" width="4" height="1" align="LEFT"></layout>
                 </layout_field>
+                <layout_field field_name="graphable" tool_tip="Whether to include this channel in the graph.">
+                    <label label_content="Graph" label_loc="LEFT" label_align="CENTER"></label>
+                    <layout row="3" column="10" width="1" height="1" align="RIGHT"
+                </layout_field>
             </section_content>         
         </entry_section>
+        <section>
+            <section_results>
+                <series field_name="series">
+                    <label label_content="Interactive Graph" label_loc="BOTTOM" label_align="CENTER"></label>
+                    <layout row="1" column="1" width="6" height="6" align="CENTER"></layout>
+                </series>
+                <image_display field_name="series_img">
+                    <label label_content="Static Graph" label_loc="BOTTOM" label_align="CENTER"></label>
+                    <layout row="1" column="7" width="6" height="6" align="CENTER"></layout>
+                </image_display>
+            </section_results>
+        </section>
     </advanced_layout>
     </custom_script>
 </custom-scripts>
