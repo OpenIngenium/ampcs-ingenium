@@ -234,12 +234,14 @@ if __name__ == '__main__':
     entries = copy.deepcopy(input_dict.get('entries', {}))
 
     # Initialize Series Data
-    series = []
+    series = {'series': []}
 
     outputs = {
         'start_time_date_time': '',
         'query_start': '',
-        'query_end': ''
+        'query_end': '',
+        'series_img': GRAPH_FILE_NAME,
+        'series': 'series'
     }
 
     output_dict = {
@@ -326,7 +328,7 @@ if __name__ == '__main__':
                               'data': channel_series_data,
                               'timetype': 'Earth Return Time'}
 
-            series.append(channel_series)
+            series['series'].append(channel_series)
 
 
     '''
@@ -358,7 +360,7 @@ if __name__ == '__main__':
     write_series_file(series,output_dir)
 
     # Write image of channels graphed
-    plot_all_channels(series, output_dir)
+    plot_all_channels(series['series'], output_dir)
 
     # Report Final custom_script_status (will complete the script)
     write_output_file(output_dict, output_file_abs_path)
